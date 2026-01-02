@@ -1,14 +1,9 @@
-# analysis.py - energy stuff
-# need to check if sim is actually conserving energy lol
-
 import numpy as np
 
 def kinetic(vel, m):
-    # T = 0.5 * m * v^2, ez
     return 0.5 * np.sum(m[:, None] * vel**2)
 
 def potential(pos, m, G=1.0):
-    # grav PE, O(n^2) but wtv
     n = len(m)
     u = 0
     for i in range(n):
@@ -29,8 +24,3 @@ def angular_momentum(pos, vel, m):
 def energy_error(e0, e):
     if e0 == 0: return 0
     return abs(e - e0) / abs(e0)
-
-# was gonna add more stuff here but idc rn
-# - period detection
-# - orbit classification 
-# - lyapunov exponent idk
