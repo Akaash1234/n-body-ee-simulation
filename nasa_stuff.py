@@ -1,12 +1,8 @@
-# nasa_stuff.py
-# JPL horizons wrapper
-# need astroquery: pip install astroquery
-
+import datetime
 from astroquery.jplhorizons import Horizons
 import numpy as np
-import pandas as pd
 
-# body IDs, had to look these up lol
+# JPL Horizons ID mapping
 BODIES = {
     'sun': '10',
     'mercury': '199',
@@ -18,80 +14,102 @@ BODIES = {
     'uranus': '799',
     'neptune': '899',
     'moon': '301',
-    'pluto': '999',  # idrc what they say its a planet
+    'pluto': '999',
 }
 
-def get_body(name, epoch='2024-01-01'):
-    """get pos/vel from jpl"""
+def get_body_state(name, epoch='2024-01-01'):
+    """
+    Fetch position and velocity vectors from JPL Horizons.
+    Returns state vectors in km and km/s.
+    """
     name = name.lower()
     body_id = BODIES.get(name, name)
     
-    # epoch format is weird idk
+    # Calculate end time for query (1 day span required for vector calculation)
+    start_date = datetime.date.fromisoformat(epoch)
+    end_date = start_date + datetime.timedelta(days=1)
+    
     epochs = {
-        'start': epoch, 
-        'stop': (pd.Timestamp(epoch) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), 
+        'start': start_date.isoformat(), 
+        'stop': end_date.isoformat(), 
         'step': '1d'
     }
-    print(f"fetching {name}...")
+    
+    print(f"Querying JPL Horizons for {name}...")
     
     obj = Horizons(id=body_id, location='@sun', epochs=epochs)
     
     try:
         vec = obj.vectors()
-        pos = np.array([vec['x'][0], vec['y'][0], vec['z'][0]])  # AU
-        vel = np.array([vec['vx'][0], vec['vy'][0], vec['vz'][0]])  # AU/day
+        # Horizon returns AU and AU/d
+        pos_au = np.array([vec['x'][0], vec['y'][0], vec['z'][0]]) 
+        vel_au_d = np.array([vec['vx'][0], vec['vy'][0], vec['vz'][0]])
         
-        # convert
-        AU_KM = 1.496e8
-        pos_km = pos * AU_KM
-        vel_kms = vel * AU_KM / 86400
+        # Constants
+        AU_KM = 1.49597871e8
+        DAY_SEC = 86400.0
         
-        return {'pos': pos_km, 'vel': vel_kms, 'name': name}
+        r_vec = pos_au * AU_KM
+        v_vec = vel_au_d * AU_KM / DAY_SEC
+        
+        return {'pos': r_vec, 'vel': v_vec, 'name': name}
     except Exception as e:
-        print(f"failed: {e}")
+        print(f"Error fetching data for {name}: {e}")
         return None
 
-def get_solar_system(epoch='2024-01-01'):
-    bodies = ['sun', 'mercury', 'venus', 'earth', 'mars']
-    data = []
-    for b in bodies:
-        d = get_body(b, epoch)
-        if d: data.append(d)
-    return data
+def get_solar_system_state(epoch='2024-01-01'):
+    targets = ['sun', 'mercury', 'venus', 'earth', 'mars']
+    system_state = []
+    for body in targets:
+        state = get_body_state(body, epoch)
+        if state:
+            system_state.append(state)
+    return system_state
 
-# masses, horizons is annoying about this so hardcoded
+# Planetary masses (kg)
+# Source: NASA Planetary Fact Sheet
 MASSES = {
-    'sun': 1.989e30,
-    'mercury': 3.301e23,
-    'venus': 4.867e24,
-    'earth': 5.972e24,
-    'mars': 6.417e23,
-    'jupiter': 1.898e27,
-    'saturn': 5.683e26,
-    'uranus': 8.681e25,
-    'neptune': 1.024e26,
+    'sun': 1.9885e30,
+    'mercury': 3.3011e23,
+    'venus': 4.8675e24,
+    'earth': 5.9724e24,
+    'mars': 6.4171e23,
+    'jupiter': 1.8982e27,
+    'saturn': 5.6834e26,
+    'uranus': 8.6810e25,
+    'neptune': 1.0241e26,
     'moon': 7.342e22,
-    'pluto': 1.309e22,
+    'pluto': 1.3090e22,
 }
 
 def get_mass(name):
-    return MASSES.get(name.lower(), 1e20)
+    return MASSES.get(name.lower(), 1.0) # Default to 1.0 if unknown (avoid div/0)
 
-def normalize_for_sim(positions, velocities, masses):
+def to_sim_units(positions, velocities, masses, g_ref=1.0):
     """
-    SI -> sim units (G=1)
-    this took forever to get right lw
+    Normalize units for numerical stability.
+    Scales system such that G = 1, M_sun = 1, and R_scale = 1 AU.
     """
-    M_sun = 1.989e30
-    AU_km = 1.496e8
+    M_sun_kg = 1.9885e30
+    AU_km = 1.49597871e8
+    G_si = 6.67430e-11
     
-    m_scale = M_sun
+    # Scaling factors
+    m_scale = M_sun_kg
     r_scale = AU_km
-    # v scale for G=1... idr the derivation
-    v_scale = np.sqrt(6.674e-11 * M_sun / (AU_km * 1e3)) / 1e3
+    
+    # Derivation for v_scale:
+    # F = G * M * m / r^2
+    # v^2 / r ~ G * M / r^2  => v ~ sqrt(G * M / r)
+    # To make G_sim = 1:
+    # v_scale = sqrt(G_si * m_scale / (r_scale_m))
+    # Note: input r is in km, G uses meters.
+    
+    r_scale_m = r_scale * 1e3
+    v_scale = np.sqrt(G_si * m_scale / r_scale_m) / 1e3 # result in km/s
     
     pos_n = positions / r_scale
     vel_n = velocities / v_scale
     mass_n = masses / m_scale
     
-    return pos_n, vel_n, mass_n, {'r': r_scale, 'v': v_scale, 'm': m_scale}
+    return pos_n, vel_n, mass_n, {'r_scale': r_scale, 'v_scale': v_scale, 'm_scale': m_scale}
