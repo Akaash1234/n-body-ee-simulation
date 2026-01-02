@@ -22,9 +22,11 @@ SOFTWARE.
 
 ---
 
-**ADDITIONAL USAGE RESTRICTION:**
+**CITATION REQUIREMENT:**
 
-This codebase is part of an ongoing Extended Essay (EE) research project. 
-**Usage, redistribution, or modification of this code is strictly prohibited without explicit permission at this time.**
+This software is the result of an International Baccalaureate Extended Essay research project.
+If you use this code for your own research, projects, or publications, **you must cite the original author:**
 
-This restriction is temporary. The project may be fully open-sourced under standard MIT terms after the completion and submission of the Extended Essay work. Until then, all rights are reserved despite the text above.
+> **Pothacamury, Akaash. (2026). N-Body Simulation & Analysis Tool for Extended Essay.**
+
+Failure to provide appropriate credit is a violation of the terms of this license.

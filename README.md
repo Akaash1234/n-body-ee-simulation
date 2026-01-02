@@ -15,6 +15,10 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## License & citation
-This project is currently **restricted** for use as it is part of an active Extended Essay (EE) research project.
-Please see the `LICENSE` file for details. It will be open-sourced after the completion of the research work.
+## Citation & License
+This project is open source under the MIT License.
+**However, if you use this code, you are required to cite the author:**
+
+> **Pothacamury, Akaash. (2026). N-Body Simulation & Analysis Tool for Extended Essay.**
+
+See `LICENSE` for details.
