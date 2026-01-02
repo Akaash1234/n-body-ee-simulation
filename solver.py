@@ -1,13 +1,6 @@
-# solver.py
-# n-body gravity stuff
-# rewrote this like 3 times lw
-
 import numpy as np
 
-G = 1.0  # natural units, idc about SI
-
-# tried scipy odeint but idr why it wasnt working
-# from scipy.integrate import odeint
+G = 1.0
 
 class Sim:
     def __init__(self, pos, vel, mass):
@@ -16,11 +9,8 @@ class Sim:
         self.m = np.array(mass, dtype=float)
         self.n = len(mass)
         self.g = G
-        # self.softening = 1e-10  # moved this inline wtv
 
     def forces(self):
-        # O(n^2) brute force, idrc about optimization rn
-        # TODO: barnes-hut maybe? idk if its worth it
         acc = np.zeros_like(self.pos)
         for i in range(self.n):
             for j in range(self.n):
@@ -30,19 +20,12 @@ class Sim:
                 acc[i] += self.g * self.m[j] * r / d**3
         return acc
 
-    # old version, order was wrong lol
-    # def step_euler(self, dt):
-    #     self.pos += self.vel * dt
-    #     self.vel += self.forces() * dt
-
     def step_euler(self, dt):
         acc = self.forces()
         self.vel += acc * dt
         self.pos += self.vel * dt
 
     def step_verlet(self, dt):
-        # velocity verlet from wikipedia
-        # KDK or smth idr
         acc = self.forces()
         self.vel += 0.5 * acc * dt
         self.pos += self.vel * dt
@@ -50,13 +33,11 @@ class Sim:
         self.vel += 0.5 * acc_new * dt
 
     def step_leapfrog(self, dt):
-        # lw the same as verlet? idk
         self.vel += 0.5 * dt * self.forces()
         self.pos += dt * self.vel
         self.vel += 0.5 * dt * self.forces()
 
     def step_rk4(self, dt):
-        # from my numerical methods notes
         def deriv(p, v):
             tmp = Sim(p, v, self.m)
             tmp.g = self.g
@@ -81,11 +62,4 @@ class Sim:
         for i in range(steps):
             self.step(dt, method)
             hist.append({'pos': self.pos.copy(), 'vel': self.vel.copy()})
-            # if i % 100 == 0: print(f"step {i}")
         return hist
-
-# tried vectorizing, gave up lol
-# def forces_vectorized(pos, mass, g):
-#     dx = pos[:, np.newaxis, :] - pos[np.newaxis, :, :]
-#     # einsum or smth?? idk
-#     pass
